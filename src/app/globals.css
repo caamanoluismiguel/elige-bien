@@ -1,26 +1,184 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-display: var(--font-space-grotesk);
+  --font-body: var(--font-inter);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-t1-bg: #0a0a0a;
+  --color-t1-surface: #141414;
+  --color-t1-surface-hover: #1e1e1e;
+  --color-t1-border: #2a2a2a;
+  --color-t1-text-primary: #f5f5f5;
+  --color-t1-text-secondary: #a0a0a0;
+  --color-t1-text-tertiary: #808080;
+  --color-t1-accent: #00ff66;
+  --color-t1-accent-muted: #00cc52;
+
+  --color-t2-bg: #0d0b09;
+  --color-t2-surface: #1a1714;
+  --color-t2-surface-hover: #242018;
+  --color-t2-border: #332e26;
+  --color-t2-text-primary: #f5f0eb;
+  --color-t2-text-secondary: #a09688;
+  --color-t2-text-tertiary: #8a7f72;
+  --color-t2-accent: #ff6b35;
+  --color-t2-accent-muted: #e55a28;
+  --color-t2-secondary: #ffd166;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), system-ui, sans-serif;
+  /* Eliminate 300ms tap delay on mobile -- critical for quiz UX */
+  touch-action: manipulation;
+  /* Prevent text size adjustment on orientation change (iOS) */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Scrollbar styling for dark backgrounds */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 9999px;
+}
+
+/* ===== Test 2 SVG Animations ===== */
+/* NOVA: Building morph animations for landing screen architectural SVG.
+   Each building group subtly shifts opacity and translateY on a staggered loop.
+   ZERO: CSS @keyframes only -- no JS, GPU-composited via transform. */
+
+@keyframes building-morph-1 {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-3px);
+    opacity: 0.7;
+  }
+}
+
+@keyframes building-morph-2 {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-5px);
+    opacity: 0.8;
+  }
+}
+
+@keyframes building-morph-3 {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 0.75;
+  }
+}
+
+/* NOVA: Pulsing glow for accent dots on SVGs */
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    filter: blur(0px);
+  }
+  50% {
+    opacity: 1;
+    filter: blur(2px);
+  }
+}
+
+/* ===== Neon Grid & Depth Animations ===== */
+/* NOVA: Slow drift for neon grid lines -- subtle parallax feel */
+@keyframes grid-drift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* NOVA: Subtle radial pulse for background glow effects */
+@keyframes radial-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+/* NOVA: Breathing opacity for ambient neon lines */
+@keyframes neon-breathe {
+  0%,
+  100% {
+    opacity: 0.08;
+  }
+  50% {
+    opacity: 0.18;
+  }
+}
+
+/* FERIA: Slow color-cycling glow for TV display QR code */
+@keyframes feria-glow-cycle {
+  0%,
+  100% {
+    box-shadow: 0 0 40px rgba(0, 255, 102, 0.3);
+    border-color: rgba(0, 255, 102, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 60px rgba(255, 107, 53, 0.3);
+    border-color: rgba(255, 107, 53, 0.4);
+  }
+}
+
+/* FERIA: Pulsing border accent for QR container */
+@keyframes qr-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* FERIA: Animated counter text glow */
+@keyframes counter-glow {
+  0%,
+  100% {
+    text-shadow: 0 0 20px rgba(0, 255, 102, 0.3);
+  }
+  50% {
+    text-shadow: 0 0 40px rgba(0, 255, 102, 0.6);
+  }
+}
+
+/* ZERO: prefers-reduced-motion -- disable all decorative animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
