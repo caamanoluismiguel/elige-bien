@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.0.2",
+    "@mediapipe/tasks-vision": "^0.10.34",
     "@supabase/supabase-js": "^2.103.2",
     "disposable-email-domains": "^1.0.62",
     "framer-motion": "^12.35.0",
