@@ -35,6 +35,8 @@ export function useHandTracker({ enabled, videoRef }: Opts) {
     zoom: null,
     nextVenue: false,
     exit: false,
+    debugKind: "none",
+    debugHandCount: 0,
   });
   const landerRef = useRef(new GestureAggregator());
 
@@ -46,8 +48,8 @@ export function useHandTracker({ enabled, videoRef }: Opts) {
     let rafId = 0;
 
     const filters = {
-      x: new OneEuroFilter(1.2, 0.01),
-      y: new OneEuroFilter(1.2, 0.01),
+      x: new OneEuroFilter(2.0, 0.05),
+      y: new OneEuroFilter(2.0, 0.05),
     };
 
     (async () => {
