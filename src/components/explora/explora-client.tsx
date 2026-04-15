@@ -5,8 +5,8 @@ import { StreetViewCanvas, type StreetViewHandle } from "./street-view-canvas";
 import { useHandTracker } from "@/hooks/use-hand-tracker";
 import { LANDMARKS, type Landmark } from "@/lib/explora/landmarks";
 
-const TURN_RATE = 90; // deg/sec at max steering
-const STEP_COOLDOWN_MS = 800;
+const TURN_RATE = 140; // deg/sec at max steering
+const STEP_COOLDOWN_MS = 700;
 
 type Props = { apiKey: string };
 
@@ -15,6 +15,12 @@ export function ExploraClient({ apiKey }: Props) {
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [svReady, setSvReady] = useState(false);
   const [svError, setSvError] = useState<string | null>(null);
+  const [debug, setDebug] = useState({
+    kind: "none",
+    hands: 0,
+    steerX: 0,
+    steerY: 0,
+  });
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const svHandleRef = useRef<StreetViewHandle | null>(null);
@@ -44,6 +50,7 @@ export function ExploraClient({ apiKey }: Props) {
     let lastT = performance.now();
     let lastStepAt = 0;
     let lastNextAt = 0;
+    let lastDebugPush = 0;
 
     const tick = (t: number) => {
       const dt = Math.min(0.1, (t - lastT) / 1000);
@@ -51,6 +58,16 @@ export function ExploraClient({ apiKey }: Props) {
       const sv = svHandleRef.current;
       const g = gestureRef.current;
       if (sv && g) {
+        // Push debug state at ~10Hz to avoid thrashing React.
+        if (t - lastDebugPush > 100) {
+          lastDebugPush = t;
+          setDebug({
+            kind: g.debugKind,
+            hands: g.debugHandCount,
+            steerX: g.steer.x,
+            steerY: g.steer.y,
+          });
+        }
         // steer → continuous rotate
         const dh = g.steer.x * TURN_RATE * dt;
         const dp = -g.steer.y * (TURN_RATE * 0.7) * dt;
@@ -152,6 +169,28 @@ export function ExploraClient({ apiKey }: Props) {
         onReadyAction={() => setSvReady(true)}
         onErrorAction={(m) => setSvError(m)}
       />
+
+      {/* Debug overlay — live classifier state (top-center) */}
+      <div className="pointer-events-none absolute left-1/2 top-4 z-40 -translate-x-1/2 rounded-xl border border-white/15 bg-black/70 px-4 py-2 font-mono text-xs backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <span className="text-white/60">gesture:</span>
+          <span
+            className={`font-semibold ${
+              debug.kind === "none" ? "text-white/40" : "text-green-400"
+            }`}
+          >
+            {debug.kind.toUpperCase()}
+          </span>
+          <span className="text-white/30">·</span>
+          <span className="text-white/60">hands:</span>
+          <span className="font-semibold text-white">{debug.hands}</span>
+          <span className="text-white/30">·</span>
+          <span className="text-white/60">steer:</span>
+          <span className="font-semibold text-white">
+            {debug.steerX.toFixed(2)},{debug.steerY.toFixed(2)}
+          </span>
+        </div>
+      </div>
 
       {/* Camera preview (bottom-right) */}
       <div className="pointer-events-none absolute bottom-28 right-4 z-30 h-28 w-36 overflow-hidden rounded-xl border border-white/15 bg-black/50 backdrop-blur-md md:h-36 md:w-48">

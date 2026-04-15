@@ -46,9 +46,9 @@ function dist(a: HandLandmark, b: HandLandmark) {
 }
 
 function isFingerExtended(hand: Hand, tipIdx: number, mcpIdx: number) {
-  // Extended if tip is farther from wrist than MCP (proxy for straight finger).
+  // Extended if tip is significantly farther from wrist than the MCP.
   return (
-    dist(hand[tipIdx], hand[WRIST]) > dist(hand[mcpIdx], hand[WRIST]) * 1.15
+    dist(hand[tipIdx], hand[WRIST]) > dist(hand[mcpIdx], hand[WRIST]) * 1.2
   );
 }
 
@@ -60,7 +60,6 @@ export function classifyHand(hand: Hand): ClassifiedHand {
   const ringExt = isFingerExtended(hand, RING_TIP, RING_MCP);
   const pinkyExt = isFingerExtended(hand, PINKY_TIP, PINKY_MCP);
 
-  // Palm span — used to scale pinch threshold.
   const palmSpan = dist(hand[INDEX_MCP], hand[PINKY_MCP]);
   const pinchDist = dist(hand[THUMB_TIP], hand[INDEX_TIP]);
   const isPinching = pinchDist < palmSpan * 0.35;
@@ -69,23 +68,29 @@ export function classifyHand(hand: Hand): ClassifiedHand {
     Boolean,
   ).length;
 
-  // Thumbs-up: only thumb extended upward, others folded, thumb above wrist.
-  const thumbAboveWrist = hand[THUMB_TIP].y < hand[WRIST].y - palmSpan * 0.3;
-  if (extCount === 0 && thumbAboveWrist) {
+  // Thumb extension: tip far from INDEX_MCP (thumb base anchor).
+  // Tucked thumb (fist) sits near the MCPs; extended thumb (thumbs-up) sticks out.
+  const thumbReach = dist(hand[THUMB_TIP], hand[INDEX_MCP]);
+  const thumbExtended = thumbReach > palmSpan * 0.9;
+
+  // Thumbs-up: ONLY thumb extended, 4 fingers folded, AND thumb clearly pointing
+  // up relative to the palm (thumb tip higher than middle MCP by a margin).
+  const thumbTipVsPalm = hand[MIDDLE_MCP].y - hand[THUMB_TIP].y; // positive = thumb above palm
+  const thumbPointingUp = thumbTipVsPalm > palmSpan * 0.6;
+  if (extCount === 0 && thumbExtended && thumbPointingUp) {
     return { kind: "thumbs-up", center, pinchPoint: null };
   }
 
-  // Peace: index + middle extended, ring + pinky folded.
+  // Peace: index + middle extended, ring + pinky folded (ignore thumb state).
   if (indexExt && middleExt && !ringExt && !pinkyExt) {
     return { kind: "peace", center, pinchPoint: null };
   }
 
-  // Fist: no fingers extended (and not thumbs-up).
+  // Fist: all 4 fingers folded (thumb can be anywhere that isn't thumbs-up).
   if (extCount === 0) {
     return { kind: "fist", center, pinchPoint: null };
   }
 
-  // Pinch: index+thumb close, at least index extended.
   if (isPinching && indexExt) {
     const pinchPoint = {
       x: (hand[THUMB_TIP].x + hand[INDEX_TIP].x) / 2,
@@ -94,7 +99,6 @@ export function classifyHand(hand: Hand): ClassifiedHand {
     return { kind: "pinch", center, pinchPoint };
   }
 
-  // Open palm: 3+ fingers extended.
   if (extCount >= 3) {
     return { kind: "open", center, pinchPoint: null };
   }
@@ -109,6 +113,9 @@ export type GestureState = {
   zoom: number | null; // absolute target 1..5 when both hands pinching
   nextVenue: boolean; // edge-triggered
   exit: boolean; // edge-triggered
+  // Debug — live classifier output for on-screen overlay
+  debugKind: GestureKind;
+  debugHandCount: number;
 };
 
 type WaveTracker = {
@@ -130,6 +137,8 @@ export class GestureAggregator {
       zoom: null,
       nextVenue: false,
       exit: false,
+      debugKind: hands[0]?.kind ?? "none",
+      debugHandCount: hands.length,
     };
 
     if (hands.length === 0) {
@@ -170,29 +179,29 @@ export class GestureAggregator {
     if (primary.kind === "fist") state.move = "forward";
     else if (primary.kind === "peace") state.move = "back";
 
-    // Open palm → steering
+    // Open palm → steering (smaller dead zone, ease curve for precision near center)
     if (primary.kind === "open") {
       const nx = (primary.center.x - 0.5) * 2;
       const ny = (primary.center.y - 0.5) * 2;
-      const DEAD = 0.25;
-      state.steer.x =
-        Math.abs(nx) < DEAD
-          ? 0
-          : (Math.sign(nx) * (Math.abs(nx) - DEAD)) / (1 - DEAD);
-      state.steer.y =
-        Math.abs(ny) < DEAD
-          ? 0
-          : (Math.sign(ny) * (Math.abs(ny) - DEAD)) / (1 - DEAD);
+      const DEAD = 0.12;
+      const mapAxis = (v: number) => {
+        if (Math.abs(v) < DEAD) return 0;
+        const scaled = (Math.abs(v) - DEAD) / (1 - DEAD);
+        // Quadratic ease-in → fine control near center, fast at edges.
+        return Math.sign(v) * Math.min(1, scaled * scaled * 2);
+      };
+      state.steer.x = mapAxis(nx);
+      state.steer.y = mapAxis(ny);
 
-      // Wave detection: count x-direction crossings within 1000ms window.
-      if (tMs - this.wave.windowStart > 1000) {
+      // Wave: count direction reversals within 1400ms window, need 2 reversals.
+      if (tMs - this.wave.windowStart > 1400) {
         this.wave = { lastX: primary.center.x, crossings: 0, windowStart: tMs };
       } else if (this.wave.lastX !== null) {
         const dx = primary.center.x - this.wave.lastX;
-        if (Math.abs(dx) > 0.15) {
+        if (Math.abs(dx) > 0.08) {
           this.wave.crossings += 1;
           this.wave.lastX = primary.center.x;
-          if (this.wave.crossings >= 3 && tMs - this.lastExitAt > 2000) {
+          if (this.wave.crossings >= 4 && tMs - this.lastExitAt > 2000) {
             state.exit = true;
             this.lastExitAt = tMs;
             this.wave = { lastX: null, crossings: 0, windowStart: tMs };
