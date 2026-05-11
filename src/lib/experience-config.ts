@@ -123,8 +123,6 @@ export const EXPERIENCE = {
       grade: {
         label: "En qué grado vas",
         options: [
-          { value: "sec_1_2", label: "1º o 2º de secundaria" },
-          { value: "sec_3", label: "3º de secundaria" },
           { value: "prepa_1_2", label: "1º o 2º de prepa" },
           { value: "prepa_3", label: "3º de prepa (último año)" },
           { value: "otro", label: "Otro" },
@@ -132,8 +130,10 @@ export const EXPERIENCE = {
         error: "Dinos en qué grado vas.",
       },
       school: {
-        label: "Tu escuela (opcional)",
-        placeholder: "Nombre de tu prepa",
+        label: "Tu escuela",
+        placeholder: "Escribe o elige de la lista",
+        hint: "Así Diego sabe a qué prepa ir a saludar.",
+        error: "Escribe tu escuela.",
       },
     },
     consent: {

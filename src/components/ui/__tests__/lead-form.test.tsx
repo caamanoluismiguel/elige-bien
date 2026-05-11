@@ -90,6 +90,7 @@ async function fillValidAndSubmit(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("Tu nombre"), "Maria Garcia");
   await user.type(screen.getByLabelText("Tu correo"), "maria@example.com");
   await user.type(screen.getByLabelText("Tu WhatsApp"), "6141234567");
+  await user.type(screen.getByLabelText("Tu escuela"), "CBTIS 122");
   await user.selectOptions(
     screen.getByLabelText("En qué grado vas"),
     "prepa_3",
@@ -109,6 +110,7 @@ describe("LeadForm — rendering", () => {
     expect(screen.getByLabelText("Tu nombre")).toBeInTheDocument();
     expect(screen.getByLabelText("Tu correo")).toBeInTheDocument();
     expect(screen.getByLabelText("Tu WhatsApp")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tu escuela")).toBeInTheDocument();
     expect(screen.getByLabelText("En qué grado vas")).toBeInTheDocument();
     expect(screen.getByRole("checkbox")).toBeInTheDocument();
   });
@@ -146,12 +148,28 @@ describe("LeadForm — validation", () => {
     expect(screen.getByText("Correo inválido")).toBeInTheDocument();
   });
 
+  it("blocks submit when school is empty", async () => {
+    const user = userEvent.setup();
+    render(<LeadForm variant="test1" onSubmit={mockOnSubmit} />);
+    await user.type(screen.getByLabelText("Tu nombre"), "Maria");
+    await user.type(screen.getByLabelText("Tu correo"), "maria@example.com");
+    await user.type(screen.getByLabelText("Tu WhatsApp"), "6141234567");
+    await user.selectOptions(
+      screen.getByLabelText("En qué grado vas"),
+      "prepa_3",
+    );
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByText("Empezar"));
+    expect(screen.getByText("Escribe tu escuela")).toBeInTheDocument();
+  });
+
   it("blocks submit when grade is not selected", async () => {
     const user = userEvent.setup();
     render(<LeadForm variant="test1" onSubmit={mockOnSubmit} />);
     await user.type(screen.getByLabelText("Tu nombre"), "Maria");
     await user.type(screen.getByLabelText("Tu correo"), "maria@example.com");
     await user.type(screen.getByLabelText("Tu WhatsApp"), "6141234567");
+    await user.type(screen.getByLabelText("Tu escuela"), "CBTIS 122");
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByText("Empezar"));
     expect(screen.getByText("Selecciona tu grado")).toBeInTheDocument();
@@ -163,6 +181,7 @@ describe("LeadForm — validation", () => {
     await user.type(screen.getByLabelText("Tu nombre"), "Maria");
     await user.type(screen.getByLabelText("Tu correo"), "maria@example.com");
     await user.type(screen.getByLabelText("Tu WhatsApp"), "6141234567");
+    await user.type(screen.getByLabelText("Tu escuela"), "CBTIS 122");
     await user.selectOptions(
       screen.getByLabelText("En qué grado vas"),
       "prepa_3",
@@ -190,6 +209,7 @@ describe("LeadForm — successful submission", () => {
         email: "maria@example.com",
         phone: "6141234567",
         grade: "prepa_3",
+        school: "CBTIS 122",
         consentMarketing: true,
       }),
     );
@@ -211,6 +231,7 @@ describe("LeadForm — successful submission", () => {
         email: "maria@example.com",
         whatsapp: "6141234567",
         grade: "prepa_3",
+        school: "CBTIS 122",
       }),
     );
   });

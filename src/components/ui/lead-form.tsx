@@ -9,6 +9,7 @@ import { createLead } from "@/lib/actions/save-lead";
 import { getAttribution } from "@/lib/attribution";
 import { setLeadId } from "@/lib/lead-session";
 import { EXPERIENCE, type GradeValue } from "@/lib/experience-config";
+import { CHIHUAHUA_SCHOOLS } from "@/lib/chihuahua-schools";
 
 interface LeadFormProps {
   variant: "test1" | "test2";
@@ -44,12 +45,14 @@ export function LeadForm({ variant, onSubmit }: LeadFormProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [school, setSchool] = useState("");
   const [grade, setGrade] = useState<GradeValue | "">("");
   const [consent, setConsent] = useState(false);
   const [errors, setErrors] = useState<{
     name?: string;
     email?: string;
     whatsapp?: string;
+    school?: string;
     grade?: string;
     consent?: string;
     server?: string;
@@ -85,6 +88,10 @@ export function LeadForm({ variant, onSubmit }: LeadFormProps) {
     if (!cleanNumber) newErrors.whatsapp = "Escribe tu WhatsApp";
     else if (cleanNumber.length < 10) newErrors.whatsapp = "Número incompleto";
 
+    const trimmedSchool = school.trim();
+    if (!trimmedSchool) newErrors.school = "Escribe tu escuela";
+    else if (trimmedSchool.length < 2) newErrors.school = "Nombre muy corto";
+
     if (!grade) newErrors.grade = "Selecciona tu grado";
 
     if (!consent) newErrors.consent = "Tienes que aceptar para continuar";
@@ -104,6 +111,7 @@ export function LeadForm({ variant, onSubmit }: LeadFormProps) {
         email: email.trim(),
         phone: whatsapp,
         grade: grade as GradeValue,
+        school: school.trim(),
         consentMarketing: consent,
         attribution: getAttribution(),
       });
@@ -119,6 +127,7 @@ export function LeadForm({ variant, onSubmit }: LeadFormProps) {
         whatsapp: whatsapp.replace(/\D/g, ""),
         email: email.trim().toLowerCase(),
         grade: grade as GradeValue,
+        school: school.trim(),
       };
       saveLead(data);
       setLeadId(result.data.leadId);
@@ -361,6 +370,68 @@ export function LeadForm({ variant, onSubmit }: LeadFormProps) {
                 className="mt-1 text-[12px] font-[family-name:var(--font-inter)] text-[#FF4444]"
               >
                 {errors.whatsapp}
+              </p>
+            )}
+          </motion.div>
+
+          <div className="h-4" />
+
+          {/* School */}
+          <motion.div variants={itemVariants}>
+            <label
+              htmlFor="lead-school"
+              className="block font-[family-name:var(--font-inter)] text-[13px] font-medium mb-1.5"
+              style={{ color: mutedColor }}
+            >
+              Tu escuela
+            </label>
+            <input
+              id="lead-school"
+              type="text"
+              list="lead-school-options"
+              value={school}
+              onChange={(e) => {
+                setSchool(e.target.value);
+                clearError("school");
+              }}
+              placeholder="Escribe o elige de la lista"
+              autoComplete="organization"
+              aria-required="true"
+              aria-invalid={errors.school ? "true" : undefined}
+              aria-describedby={
+                errors.school ? "lead-school-error" : "lead-school-hint"
+              }
+              className={inputClass}
+              style={inputBaseStyle(!!errors.school)}
+              onFocus={(e) => {
+                if (!errors.school)
+                  e.currentTarget.style.borderColor = focusBorder;
+              }}
+              onBlur={(e) => {
+                if (!errors.school)
+                  e.currentTarget.style.borderColor = borderColor;
+              }}
+            />
+            <datalist id="lead-school-options">
+              {CHIHUAHUA_SCHOOLS.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+            {errors.school ? (
+              <p
+                id="lead-school-error"
+                role="alert"
+                className="mt-1 text-[12px] font-[family-name:var(--font-inter)] text-[#FF4444]"
+              >
+                {errors.school}
+              </p>
+            ) : (
+              <p
+                id="lead-school-hint"
+                className="mt-1 text-[11px] font-[family-name:var(--font-inter)]"
+                style={{ color: `${mutedColor}99` }}
+              >
+                Si no está en la lista, escríbela.
               </p>
             )}
           </motion.div>

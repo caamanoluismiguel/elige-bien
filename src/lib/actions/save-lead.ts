@@ -39,7 +39,7 @@ export interface CreateLeadInput {
   email: string;
   phone: string;
   grade: GradeValue;
-  school?: string;
+  school: string;
   consentMarketing: boolean;
   attribution: AttributionPayload;
 }
@@ -74,6 +74,11 @@ export async function createLead(
     return { success: false, error: "Pon un número de WhatsApp válido." };
   }
 
+  const school = input.school.trim();
+  if (school.length < 2) {
+    return { success: false, error: "Pon el nombre de tu escuela." };
+  }
+
   try {
     const { data, error } = await supabase
       .from("leads")
@@ -83,7 +88,7 @@ export async function createLead(
         email_verified_method: "heuristic",
         phone,
         grade: input.grade,
-        school: input.school?.trim() || null,
+        school,
         consent_marketing: true,
         consent_timestamp: new Date().toISOString(),
         source: input.attribution.source ?? null,
