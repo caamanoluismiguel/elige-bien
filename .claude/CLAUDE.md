@@ -285,7 +285,7 @@ Set in `.env.local` (dev) AND Vercel dashboard (prod). Key must have:
 - **Google account:** `isthmusxp@gmail.com`
 - **Project:** `eligebien-explora` (project ID: `project-7952a4b0-dc27-4ff9-bf3`)
 - **Billing:** ⚠️ NOT LINKED — OR-CBAT-23 card rejection. Needs resolution.
-- **API key:** `[REDACTED-MAPS-KEY]` (restricted to eligebien.co)
+- **API key:** stored only in Vercel env (`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`) — never paste actual key in this file
 
 ## Conferencia derivada — "Cuando la máquina siempre te da la razón" (2026-04-27)
 
