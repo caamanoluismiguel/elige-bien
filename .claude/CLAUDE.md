@@ -6,13 +6,30 @@
 
 **Positioning:** standalone product, not a school ad. Isthmus is credited in the footer and fine print — NOT in the headline. The test is the bait; the school is the fisherman. Kids share the test because it feels like a personality quiz, not a recruitment funnel. The brand can be used for 3+ years of lead gen across multiple enrollment cycles.
 
-## Current State (2026-04-15)
+## Current State (2026-05-13)
 
 - **Status:** 🚀 **LIVE IN PRODUCTION**
 - **Domain:** [eligebien.co](https://eligebien.co) — GoDaddy DNS → Vercel → Let's Encrypt SSL
 - **Git:** https://github.com/caamanoluismiguel/elige-bien (public)
 - **Vercel project:** `luis-caamano-s-projects/elige-bien`
 - **Internal project name:** `isthmus-norte` (directory name only — not user-facing)
+- **Admin panel:** `/admin/leads` (password gated, see Vercel env `ADMIN_PASSWORD`)
+- **Lead form:** 6 required fields (name, email, WhatsApp, **school**, grade, consent). Secundaria grades removed — audience is prepa only.
+
+## ⚠️ Open security action (2026-05-13)
+
+Two Google API keys leaked into git history were scrubbed via `git filter-repo` + force-push to main, but **both keys must still be rotated** because:
+
+1. GitHub may serve old SHAs for a while via direct URLs until GC runs
+2. Anyone who cloned the repo between leak and force-push has the keys locally
+
+**To do:**
+
+- [ ] Rotate Gemini key at https://aistudio.google.com/apikey (delete `AIzaSyB...QA4`, generate new, update local MCP configs: `mcp-image`, `veo`, `video-audio-mcp` — all use the same key per global memory)
+- [ ] Rotate Maps key at https://console.cloud.google.com/apis/credentials?project=eligebien-explora (delete `AIzaSyC...aX9U`, generate new with referrer restriction `https://eligebien.co/*` + `http://localhost:3000/*` + API restriction Maps JS only). Then `vercel env rm` + `add` + redeploy + `vercel env pull .env.local`.
+- [ ] Mark GitHub Secret Scanning alerts as "Revoked" once rotated.
+
+**Never paste real keys into CLAUDE.md again** — only reference them by env-var name.
 
 ## Tech Stack
 
@@ -20,7 +37,7 @@
 - **Tailwind CSS v4** + **Framer Motion 12**
 - **Supabase** (Postgres + RLS) — `elige-bien-MX` project, PII-safe deny-all policies
 - **Server Actions** for all lead writes (never client → DB direct)
-- **Vitest** (94 tests passing) + **Playwright** (e2e)
+- **Vitest** (95 tests passing) + **Playwright** (e2e)
 - No auth, no client-side Supabase access, no Google Sheets
 
 ## Architecture
@@ -35,7 +52,13 @@ src/
 │   │   ├── page.tsx              # Server component (OG metadata)
 │   │   ├── shared-result-client.tsx
 │   │   └── opengraph-image.tsx   # Dynamic OG image (Edge runtime)
-│   └── feria/page.tsx            # TV booth display for school fairs
+│   ├── feria/page.tsx            # TV booth display for school fairs
+│   └── admin/                    # Password-gated dashboard
+│       ├── page.tsx              # Redirect to /admin/leads
+│       ├── layout.tsx            # Dark theme shell + noindex metadata
+│       ├── actions.ts            # loginAction, logoutAction, toggleHotFlag, updateLeadNotes
+│       ├── login/                # Login form (server action + cookie session)
+│       └── leads/                # Leads table (stats header, filters, CSV, inline notes)
 ├── components/
 │   ├── attribution-capture.tsx   # Client component dropped into entry routes
 │   ├── test-1/                   # "Descubre Tu Mente" (6 questions, 5 cognitive axes)
@@ -46,6 +69,8 @@ src/
 │   ├── experience-config.ts      # SINGLE SOURCE OF TRUTH for all copy, manifesto, CTAs
 │   ├── supabase.ts               # Server-only client (Proxy, lazy env validation)
 │   ├── actions/save-lead.ts      # createLead + updateLeadResults server actions
+│   ├── admin-auth.ts             # Password compare + cookie session (server-only)
+│   ├── chihuahua-schools.ts      # 49 prepas de Chihuahua capital for form datalist
 │   ├── email-verify.ts           # Format + disposable blocklist + MX DNS check
 │   ├── attribution.ts            # URL params → sessionStorage (source, UTMs, referrer)
 │   ├── lead-session.ts           # sessionStorage helper for the Supabase lead UUID
@@ -85,13 +110,16 @@ Landing → LeadForm (name + email + phone + grade + consent)
 - `updateLeadResults()` is called after Test 1 AND Test 2 — fire-and-forget, best-effort.
 - If `leadId` is missing from sessionStorage (shouldn't happen), test results are silently dropped. The lead row is still valid.
 
-### Lead form fields (5 required)
+### Lead form fields (6 required)
 
 1. **Name** — min 2 chars
 2. **Email** — format regex + disposable domain blocklist + MX DNS lookup
 3. **WhatsApp** — normalized to E.164 Mexican format (+52)
-4. **Grade** — dropdown: `sec_1_2 | sec_3 | prepa_1_2 | prepa_3 | otro`
-5. **Consent checkbox** — LFPDPPP-compliant, explicit opt-in
+4. **School** — free-text with `<datalist>` autocomplete from `chihuahua-schools.ts` (49 prepas). Kids can type any value if their school isn't listed.
+5. **Grade** — dropdown: `prepa_1_2 | prepa_3 | otro` (secundaria options removed 2026-05-13 — audience is prepa only)
+6. **Consent checkbox** — LFPDPPP-compliant, explicit opt-in
+
+**Legacy grade keys:** Old leads with `sec_1_2`/`sec_3` may still exist in DB. Admin `GRADE_LABELS` keeps those keys for display safety, but the form no longer emits them.
 
 ### Email verification — zero friction, no OTP
 
@@ -145,11 +173,15 @@ created_at, updated_at
 NEXT_PUBLIC_SUPABASE_URL=https://jhzvlrjahalgqlmbuohu.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 SUPABASE_SECRET_KEY=sb_secret_...
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIza...    # for /explora
+ADMIN_PASSWORD=...                          # for /admin login
 ```
+
+To restore from Vercel: `npx vercel env pull .env.local --environment production --yes`.
 
 ### Vercel (production)
 
-Same 3 vars, already set via `vercel env add ... production`.
+All 5 vars set via `vercel env add ... production`. **Note:** when adding a key value via the CLI, paste WITHOUT a trailing newline — pasted `\n` becomes literal `\n` in the stored value and breaks runtime (known Vercel bug).
 
 ### NOT used anymore
 
@@ -159,13 +191,16 @@ Same 3 vars, already set via `vercel env add ... production`.
 
 ```bash
 npx tsc --noEmit          # Type check (2 pre-existing errors in questions.test.ts — ignore)
-npx vitest run            # 94 tests pass (1 skipped)
+npx vitest run            # 95 tests pass (1 skipped)
 npm run dev               # Dev server (default port 3000, prefer 3939 to avoid clashes)
 npm run build             # Production build — verifies Vercel deploy won't fail
 vercel --prod --yes       # Deploy to production (prefer git push via GitHub integration)
 
 node --env-file=.env.local scripts/supabase-smoke-test.mjs  # Verify Supabase wiring
 node scripts/email-verify-test.mjs                           # Smoke test email verification
+
+# Pre-commit secret scan — run before EVERY commit
+git diff --cached | grep -nE "AIza[0-9A-Za-z_-]{20,}|sk-[A-Za-z0-9]{20,}|sk_(test|live)_[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|sb_secret_[A-Za-z0-9]{20,}"
 ```
 
 ## Deploy workflow
@@ -205,7 +240,49 @@ The old Q6 name-checked famous architects (Tadao Ando, Norman Foster, Aravena, N
 > - _impacto:_ "Me cambió la vida"
 > - _innovacion:_ "Nadie había hecho algo así"
 
-## /explora — Gesture-Controlled Street View Tour
+## /admin — Internal Leads Dashboard
+
+### What It Is
+
+Password-gated panel for Diego (and anyone with the password) to triage leads in real time during/after a fair. Lives at `eligebien.co/admin` (root redirects to `/admin/leads`).
+
+### Auth
+
+- **Password env var:** `ADMIN_PASSWORD` (set in Vercel production + `.env.local`)
+- **Session:** httpOnly cookie `eb_admin_session`, 30-day max-age, `secure` in prod
+- **Comparison:** constant-time via `crypto.timingSafeEqual` (`src/lib/admin-auth.ts`)
+- Login form posts to `loginAction`; success sets cookie + redirects to `/admin/leads`. Logout clears cookie.
+
+### Features
+
+- **Stats header** — 6 cards: Total · Hoy · 7 días · Completaron ambos tests (with %) · Solo Test 1 · 🔥 Calientes
+- **Filtered table** — search (name/email/WhatsApp/school/source/notes), school dropdown, completion status, hot-only checkbox
+- **CSV export** of the current filtered set (with BOM for Excel compat)
+- **🔥 Hot flag** — optimistic toggle per row, server action with rollback on error
+- **Inline notes** — click cell to edit textarea (Cmd/Ctrl+Enter saves, Esc cancels, 2000-char cap). Server action `updateLeadNotes` validates auth + length + persists trimmed/null to `leads.notes`.
+- **Click-to-WhatsApp** — phone numbers link to `wa.me/<number>`
+- **Click-to-email** — `mailto:` for quick reply
+
+### Architecture
+
+```
+src/app/admin/
+├── page.tsx                  # Redirects to /admin/leads
+├── layout.tsx                # Dark shell, noindex
+├── actions.ts                # loginAction, logoutAction, toggleHotFlag, updateLeadNotes
+├── login/
+│   ├── page.tsx
+│   └── login-form.tsx        # useActionState + autofocus password input
+└── leads/
+    ├── page.tsx              # Server component: auth check, fetch leads, compute stats, render
+    └── leads-table.tsx       # Client component: filters, CSV, hot toggle, NotesCell editor
+
+src/lib/admin-auth.ts          # passwordMatches + cookie helpers + isAdminAuthenticated
+```
+
+### Server actions return shape
+
+All admin mutations return `{ success: true } | { success: false, error: string }` and check `isAdminAuthenticated()` first. UI uses `useTransition` for optimistic updates with rollback on `!success`.
 
 ### What It Is
 
@@ -347,7 +424,7 @@ Keynote pública de 30-40 min derivada de los `docs/` del curso de IA. Reformula
 
 9. WhatsApp Business API integration (when Mexican SIM is solved)
 10. Email nurture sequence via Resend (Day 0, 3, 7, 14) — currently deferred
-11. Admin dashboard at `/admin/leads` for Diego (per-fair filtering, hot-flag marking)
+11. Admin dashboard polish: date-range filter, per-lead detail modal with full attribution + raw test answers (current admin shipped 2026-05-13 with stats, hot-flag, inline notes, CSV)
 12. Pre-verify high-value leads before first send (ZeroBounce or similar)
 
 ### Long-term
